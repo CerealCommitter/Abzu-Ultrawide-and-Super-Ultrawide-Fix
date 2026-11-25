@@ -1,4 +1,11 @@
-# ABZÛ: ultrawide notes
+# Abzu Screen Resolution Fix
+
+A resolution-only fix that makes ABZÛ (PC) display correctly on ultrawide (21:9) and super-ultrawide (32:9)
+monitors. Nothing else about the game is changed.
+
+**Status:** step 1 (settings-file resolution) done. Step 2 (FOV-correcting DLL) not started.
+
+## Notes
 
 - Steam app 384190. Unreal Engine 4.12.5. Install: `D:\SteamLibrary\steamapps\common\ABZU`.
 - User config: `%LOCALAPPDATA%\AbzuGame\Saved\Config\WindowsNoEditor\GameUserSettings.ini`.
