@@ -22,6 +22,7 @@ namespace {
 wchar_t g_dir[MAX_PATH];  // folder holding this DLL, with trailing backslash
 bool g_enabled = true;
 bool g_log = false;
+float g_boxAspect = 0.0f;  // AspectRatio setting: 0 = use the full screen width
 SRWLOCK g_logLock = SRWLOCK_INIT;
 
 void Log(const char* fmt, ...) {
@@ -53,13 +54,26 @@ void LoadSettings() {
     lstrcatW(ini, L"AbzuFix.ini");
     g_enabled = GetPrivateProfileIntW(L"AbzuFix", L"Enabled", 1, ini) != 0;
     g_log = GetPrivateProfileIntW(L"AbzuFix", L"Log", 0, ini) != 0;
+
+    // AspectRatio: "21:9", "16:9", "64:27", a decimal like "2.37", or 0 / empty for off.
+    wchar_t v[64] = {};
+    GetPrivateProfileStringW(L"AbzuFix", L"AspectRatio", L"0", v, 64, ini);
+    double w = 0, h = 0;
+    if (swscanf_s(v, L"%lf : %lf", &w, &h) == 2 && w > 0 && h > 0) {
+        g_boxAspect = (float)(w / h);
+    } else if (swscanf_s(v, L"%lf", &w) == 1 && w > 0) {
+        g_boxAspect = (float)w;
+    }
+    if (!(g_boxAspect >= 1.0f && g_boxAspect <= 10.0f)) g_boxAspect = 0.0f;
 }
 
 // ---- the game's camera FOV function -------------------------------------------------------
 // void CameraApplyFOV(Camera* self, const FMinimalViewInfo* in, FMinimalViewInfo* out)
 //   aspect   = self->GetViewAspect()         (sub at +0x1D; 1.0 if no viewport)
 //   out->FOV = min(2*deg(atan(tan(rad(in->FOV)/2) * aspect)), 100)     in->FOV is vertical
-constexpr size_t kFovOffset = 0x18;  // FMinimalViewInfo::FOV
+constexpr size_t kFovOffset = 0x18;     // FMinimalViewInfo::FOV
+constexpr size_t kAspectOffset = 0x28;  // FMinimalViewInfo::AspectRatio
+constexpr size_t kFlagsOffset = 0x2C;   // bit 0 = FMinimalViewInfo::bConstrainAspectRatio
 using ApplyFovFn = void(__fastcall*)(void* self, const uint8_t* in, uint8_t* out);
 using AspectScaleFn = float(__fastcall*)(void* self);
 ApplyFovFn g_original = nullptr;
@@ -76,25 +90,43 @@ void __fastcall Hook(void* self, const uint8_t* in, uint8_t* out) {
     if (!g_enabled) return;
 
     constexpr float kRef = 16.0f / 9.0f;
-    const float aspect = g_aspectScale(self);
-    // Only screens wider than 16:9; 16:9 and narrower keep the game's own result untouched.
-    if (!(aspect > kRef * 1.0001f) || !(aspect < 16.0f) || !(baseFov > 0.0f) ||
-        !(baseFov < 179.0f))
+    const float screen = g_aspectScale(self);
+    if (!(screen > 0.5f) || !(screen < 16.0f) || !(baseFov > 0.0f) || !(baseFov < 179.0f))
         return;
 
-    // Same formula as the game; the 100-degree cap (defined for 16:9) is converted to this
-    // aspect ratio so it limits the same vertical view it limits at 16:9.
-    const double horPlus = FromHalfTan(HalfTan(baseFov) * aspect);
-    const double cap = FromHalfTan(HalfTan(g_gameCap) * (aspect / kRef));
-    const float fixedFov = (float)(horPlus < cap ? horPlus : cap);
+    // Black-bar mode: if a narrower AspectRatio is set, draw the picture as if the monitor were
+    // that shape. The engine centres it and fills the sides with black (pillarbox).
+    const bool box = g_boxAspect > 0.0f && g_boxAspect < screen * 0.999f;
+    const float aspect = box ? g_boxAspect : screen;
+
     float& outFov = *reinterpret_cast<float*>(out + kFovOffset);
+    const float gameFov = outFov;
+    float fov = gameFov;
+    if (box) {
+        // What the game itself would compute on a screen of this shape.
+        const double horPlus = FromHalfTan(HalfTan(baseFov) * aspect);
+        fov = (float)(horPlus < g_gameCap ? horPlus : g_gameCap);
+    }
+    if (aspect > kRef * 1.0001f) {
+        // Wider than 16:9: same formula as the game, with the 100-degree cap (defined for 16:9)
+        // converted to this aspect so it limits the same vertical view it limits at 16:9.
+        const double horPlus = FromHalfTan(HalfTan(baseFov) * aspect);
+        const double cap = FromHalfTan(HalfTan(g_gameCap) * (aspect / kRef));
+        fov = (float)(horPlus < cap ? horPlus : cap);
+    }
+    // At 16:9 or narrower with no black bars, fov == gameFov: nothing is changed.
 
     static float lastLogged = -1.0f;
-    if (g_log && fabsf(fixedFov - lastLogged) > 0.5f) {
-        lastLogged = fixedFov;
-        Log("aspect=%.4f vfov=%.3f game=%.3f fixed=%.3f", aspect, baseFov, outFov, fixedFov);
+    if (g_log && fabsf(fov - lastLogged) > 0.5f) {
+        lastLogged = fov;
+        Log("screen=%.4f picture=%.4f vfov=%.3f game=%.3f fixed=%.3f", screen, aspect, baseFov,
+            gameFov, fov);
     }
-    outFov = fixedFov;
+    outFov = fov;
+    if (box) {
+        *reinterpret_cast<float*>(out + kAspectOffset) = aspect;
+        out[kFlagsOffset] |= 1;  // bConstrainAspectRatio
+    }
 }
 
 // ---- hook installation -----------------------------------------------------------------
@@ -204,7 +236,8 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID) {
         if (slash) slash[1] = 0;
         if (IsGameExe()) {
             LoadSettings();
-            Log("---- Abzu Screen Resolution Fix loaded (Enabled=%d) ----", g_enabled ? 1 : 0);
+            Log("---- Abzu Screen Resolution Fix loaded (Enabled=%d, AspectRatio=%.4f) ----",
+                g_enabled ? 1 : 0, g_boxAspect);
             if (g_enabled) InstallHook();
         }
     }

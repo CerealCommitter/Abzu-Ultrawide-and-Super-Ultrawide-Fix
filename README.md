@@ -18,6 +18,21 @@ and at 16:9 or narrower the game behaves exactly as before.
 **Uninstall:** delete `version.dll` and `AbzuFix.ini` from that folder. `Enabled=0` in the ini
 also turns the fix off.
 
+## Black-bar mode (optional)
+Set `AspectRatio` in `AbzuFix.ini` to play in a narrower shape, centred, with black bars at the
+sides, while the game stays fullscreen at native resolution. The monitor doesn't switch modes, so
+the picture stays sharp and alt-tab stays fast. The view is exactly what a real monitor of that
+shape would show.
+
+```ini
+AspectRatio=0      ; default: fill the whole screen
+AspectRatio=21:9   ; also 64:27, 16:9, or a decimal such as 2.37
+```
+
+![Full screen, 21:9 and 16:9 modes on a 32:9 monitor](screenshots/compare-black-bar-modes.jpg)
+
+Menus and on-screen text are laid out for the full screen width, so menus stay centred.
+
 ## What was wrong
 - UE 4.12.5, Steam app 384190. The engine uses its default "keep horizontal FOV" projection.
 - ABZU's camera code (`exe+0x161A00`) does proper Hor+: it takes a vertical FOV (58° in normal
@@ -46,7 +61,10 @@ differs, it does nothing.
 | 21:9 (2520x1080) | 100° (capped) | 104.6° | from the log only (no screenshot) |
 | 32:9 (5120x1440) | 100° (capped) | 126.2° | screenshots: same framing as 16:9 (measured zoom 1.03 vs 1.70 before) |
 
-Not yet checked in game: story cutscenes, and the optional black-bar (fixed aspect) mode.
+Black-bar mode on 5120x1440: `21:9` gives a centred 3360x1440 picture, `16:9` gives 2560x1440
+(menu and gameplay checked).
+
+Not yet checked in game: story cutscenes.
 
 ## Build
 Run `build.cmd` (needs Visual Studio with "Desktop development with C++"). Output: `bin\version.dll`.
