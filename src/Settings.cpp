@@ -205,3 +205,5 @@ bool RunLaunchSettings(const wchar_t* ini, FixSettings& s) {
     ApplyResolutionToGame(s);
     return true;
 }
+
+void DesktopResolution(int& w, int& h) { DesktopSize(w, h); }

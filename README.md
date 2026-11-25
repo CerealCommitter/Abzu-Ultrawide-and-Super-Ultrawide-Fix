@@ -74,6 +74,21 @@ converted from 16:9 to the current aspect ratio:
 The hook finds the function by byte pattern and checks the cap instruction. If the game version
 differs, it does nothing.
 
+### Startup fixes
+- **Boot resolution.** Unreal replaces a fullscreen resolution that isn't smaller than the
+  monitor's "native" size with that native size, and reads "native" from the monitor's EDID. Some
+  monitors report less than they support (this 5120x1440 monitor reports 3840x1080), so the game
+  booted at 3840x1080, played its intro there, and switched to 5120x1440 afterwards. The second
+  display-mode switch blacked out the Giant Squid logo. The DLL hooks
+  `UGameEngine::DetermineGameWindowResolution` (`exe+0x10EBA40`) so fullscreen boots straight
+  into the chosen resolution (native = the desktop's resolution). This is also why the in-game
+  "Display Res: Native" picks 3840x1080.
+- **Starting minimized.** Steam starts the game through `AbzuGame.exe`, so Windows refuses the real
+  game's request for focus, and a fullscreen Unreal window without focus minimizes itself. During
+  startup only, the DLL catches the game's own `ShowWindow` / `SetForegroundWindow` calls: it
+  retries the focus request and keeps the window from minimizing. After the game has had focus,
+  both calls are untouched, so alt-tab works as normal.
+
 ## Verified
 | Aspect | Game FOV | With fix | Result |
 |---|---|---|---|
@@ -87,7 +102,11 @@ Black-bar mode on 5120x1440: `21:9` gives a centred 3360x1440 picture, `16:9` gi
 
 Settings window (Steam launch): opens before the game; Play with "Native" took the game from its
 own 3840x1080 pick to 5120x1440; choosing 21:9 gave black bars; with the window turned off the
-resolution is still corrected. Holding Shift to reopen it hasn't been tested.
+resolution is still corrected. Holding Shift reopens it (play-tested).
+
+Startup (launched from Steam's Play button, both with and without the settings window): the game
+window opens directly at 5120x1440 fullscreen with focus, and the Giant Squid and 505 Games logos
+both show.
 
 Story cutscenes are rendered in-engine and go through the same camera code; play-tested on 32:9
 and they display correctly.

@@ -16,6 +16,9 @@ void SaveFixSettings(const wchar_t* iniPath, const FixSettings& s);
 // Parses an AspectRatio string; returns 0 for "full screen".
 float ParseAspect(const wchar_t* text);
 
+// The primary display's current resolution.
+void DesktopResolution(int& w, int& h);
+
 // Writes the chosen resolution (native if 0) into the game's GameUserSettings.ini.
 void ApplyResolutionToGame(const FixSettings& s);
 
