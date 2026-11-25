@@ -26,10 +26,12 @@ Steam version has been tested.
 A small window opens when the game starts, before the game itself loads, however it's launched
 (Steam, another store's launcher, or the exe directly):
 
+![The settings window](screenshots/launcher-window.png)
+
 - **Resolution**: "Native" (your monitor's resolution) or any mode your monitor supports.
 - **Picture shape**: fill the whole screen, or 21:9 / 16:9 / 4:3 with black bars at the sides.
-- **Show this window when the game starts**: untick to skip it; hold **Shift** while the game starts
-  to bring it back.
+- **Show these settings every time the game starts**: untick to skip the window and start straight
+  away with your saved settings. Hold **Shift** while starting the game to see the window again.
 - **Play** starts the game with those settings; **Quit** cancels the launch.
 
 The chosen resolution is written into the game's own settings at every launch, even when the
@@ -95,8 +97,11 @@ Run `build.cmd` (needs Visual Studio with "Desktop development with C++"). Outpu
 `tools\run_at.ps1` launches the game at a given resolution for testing.
 
 ## Files
-- `src\` - the DLL source (`AbzuFix.cpp` hooks, `Settings.cpp` launch window, `proxy_version.cpp`
-  + `version.def` pass-through).
+- `src\` - the DLL source: `AbzuFix.cpp` (hooks), `Settings.cpp` (ABZU's settings),
+  `LauncherUI.cpp` (reusable CerealCommitter launcher window), `proxy_version.cpp` + `version.def`
+  (pass-through to the system `version.dll`), `resources.rc` (embedded logo).
+- `assets\` - the logo embedded in the DLL.
+- `design\` - launcher design mockups.
 - `config\` - working 5120x1440 settings file.
 - `backup\` - the original game settings files and save, from before any testing.
 - `screenshots\` - baseline (4:3 / 16:9 / 32:9) and fixed captures.

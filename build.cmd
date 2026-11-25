@@ -7,8 +7,10 @@ if not defined VSDIR (echo MSVC x64 tools not found & exit /b 1)
 call "%VSDIR%\VC\Auxiliary\Build\vcvars64.bat" >nul || exit /b 1
 if not exist bin mkdir bin
 if not exist obj mkdir obj
+rc /nologo /fo obj\resources.res src\resources.rc || exit /b 1
 cl /nologo /O2 /MT /W3 /EHsc /GS- /DUNICODE /D_UNICODE /Foobj\ ^
-   src\AbzuFix.cpp src\Settings.cpp src\proxy_version.cpp ^
+   src\AbzuFix.cpp src\Settings.cpp src\LauncherUI.cpp src\proxy_version.cpp obj\resources.res ^
    /LD /Febin\version.dll ^
-   /link /DEF:src\version.def /NODEFAULTLIB:libcmtd user32.lib kernel32.lib gdi32.lib shell32.lib || exit /b 1
+   /link /DEF:src\version.def /NODEFAULTLIB:libcmtd user32.lib kernel32.lib gdi32.lib shell32.lib ^
+   gdiplus.lib dwmapi.lib ole32.lib || exit /b 1
 echo Built bin\version.dll

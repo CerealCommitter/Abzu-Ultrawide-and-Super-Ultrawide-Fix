@@ -5,7 +5,8 @@
 // It works the same however the game is launched (Steam, Epic, GOG, or the exe directly).
 #include "Settings.h"
 
-#include <commctrl.h>
+#include "LauncherUI.h"
+
 #include <shlobj.h>
 #include <stdio.h>
 #include <wchar.h>
@@ -66,164 +67,70 @@ const Shape kShapes[] = {
     {L"4:3", L"4:3 with black bars at the sides"},
 };
 
-// ---- the window ------------------------------------------------------------------------
-enum { IdRes = 101, IdShape, IdShow, IdPlay, IdQuit };
-
-struct WindowState {
-    FixSettings* s;
-    std::vector<Mode> modes;
-    int nativeW, nativeH;
-    bool customShape;  // ini holds a shape not in kShapes; kept as the last list item
-    bool play = false;
-    bool done = false;
-    HWND res = nullptr, shape = nullptr, show = nullptr;
-};
-
-LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
-    auto* st = reinterpret_cast<WindowState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
-    switch (msg) {
-        case WM_COMMAND:
-            if (!st) break;
-            if (LOWORD(wp) == IdPlay || LOWORD(wp) == IDOK) {
-                // Resolution: item 0 = native, then the mode list.
-                int r = (int)SendMessageW(st->res, CB_GETCURSEL, 0, 0);
-                if (r <= 0) {
-                    st->s->resX = st->s->resY = 0;
-                } else {
-                    st->s->resX = st->modes[r - 1].w;
-                    st->s->resY = st->modes[r - 1].h;
-                }
-                int sh = (int)SendMessageW(st->shape, CB_GETCURSEL, 0, 0);
-                if (sh >= 0 && sh < (int)(sizeof(kShapes) / sizeof(kShapes[0])))
-                    lstrcpynW(st->s->aspect, kShapes[sh].value, 32);
-                st->s->showWindow = SendMessageW(st->show, BM_GETCHECK, 0, 0) == BST_CHECKED;
-                st->play = true;
-                DestroyWindow(hwnd);
-                return 0;
-            }
-            if (LOWORD(wp) == IdQuit || LOWORD(wp) == IDCANCEL) {
-                DestroyWindow(hwnd);
-                return 0;
-            }
-            break;
-        case WM_CLOSE:
-            DestroyWindow(hwnd);
-            return 0;
-        case WM_DESTROY:
-            if (st) st->done = true;
-            return 0;
-    }
-    return DefWindowProcW(hwnd, msg, wp, lp);
-}
-
-HWND Make(const wchar_t* cls, const wchar_t* text, DWORD style, int x, int y, int w, int h,
-          HWND parent, int id, HFONT font) {
-    HWND c = CreateWindowExW(0, cls, text, WS_CHILD | WS_VISIBLE | style, x, y, w, h, parent,
-                             (HMENU)(INT_PTR)id, GetModuleHandleW(nullptr), nullptr);
-    SendMessageW(c, WM_SETFONT, (WPARAM)font, TRUE);
-    return c;
+// The DLL holding the logo resource (this module, not the game exe).
+HMODULE ThisModule() {
+    HMODULE m = nullptr;
+    GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                           GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                       reinterpret_cast<LPCWSTR>(&ThisModule), &m);
+    return m;
 }
 
 bool ShowWindowAndWait(FixSettings& s) {
-    WindowState st;
-    st.s = &s;
-    st.modes = DisplayModes();
-    DesktopSize(st.nativeW, st.nativeH);
-
-    NONCLIENTMETRICSW ncm = {sizeof(ncm)};
-    SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, 0);
-    ncm.lfMessageFont.lfHeight = -15;
-    HFONT font = CreateFontIndirectW(&ncm.lfMessageFont);
-    LOGFONTW bold = ncm.lfMessageFont;
-    bold.lfWeight = FW_SEMIBOLD;
-    bold.lfHeight = -20;
-    HFONT titleFont = CreateFontIndirectW(&bold);
-
-    WNDCLASSW wc = {};
-    wc.lpfnWndProc = WndProc;
-    wc.hInstance = GetModuleHandleW(nullptr);
-    wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-    wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE + 1);
-    wc.lpszClassName = L"AbzuFixLaunchSettings";
-    wc.hIcon = LoadIconW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(1));
-    RegisterClassW(&wc);
-
-    const int W = 460, H = 330;
-    RECT rc = {0, 0, W, H};
-    const DWORD style = WS_CAPTION | WS_SYSMENU | WS_POPUP;
-    AdjustWindowRect(&rc, style, FALSE);
-    const int ww = rc.right - rc.left, wh = rc.bottom - rc.top;
-    HWND hwnd = CreateWindowExW(WS_EX_APPWINDOW | WS_EX_TOPMOST, wc.lpszClassName,
-                                L"ABZ\x00DB - Screen Settings", style,
-                                (GetSystemMetrics(SM_CXSCREEN) - ww) / 2,
-                                (GetSystemMetrics(SM_CYSCREEN) - wh) / 2, ww, wh, nullptr,
-                                nullptr, wc.hInstance, nullptr);
-    if (!hwnd) return true;  // can't show a window: just start the game
-    SetWindowLongPtrW(hwnd, GWLP_USERDATA, (LONG_PTR)&st);
-
-    const int L = 24, CW = W - 2 * L;
-    Make(L"STATIC", L"Abzu Screen Resolution Fix", 0, L, 18, CW, 28, hwnd, 0, titleFont);
-
-    Make(L"STATIC", L"Resolution", 0, L, 62, CW, 20, hwnd, 0, font);
-    st.res = Make(L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP, L, 84, CW, 400,
-                  hwnd, IdRes, font);
+    const std::vector<Mode> modes = DisplayModes();
+    int nativeW = 0, nativeH = 0;
+    DesktopSize(nativeW, nativeH);
     wchar_t buf[96];
-    swprintf_s(buf, L"Native (%d x %d)", st.nativeW, st.nativeH);
-    SendMessageW(st.res, CB_ADDSTRING, 0, (LPARAM)buf);
-    int sel = 0;
-    for (size_t i = 0; i < st.modes.size(); ++i) {
-        const Mode& m = st.modes[i];
-        swprintf_s(buf, L"%d x %d", m.w, m.h);
-        SendMessageW(st.res, CB_ADDSTRING, 0, (LPARAM)buf);
-        if (s.resX == m.w && s.resY == m.h) sel = (int)i + 1;
-    }
-    SendMessageW(st.res, CB_SETCURSEL, sel, 0);
 
-    Make(L"STATIC", L"Picture shape", 0, L, 128, CW, 20, hwnd, 0, font);
-    st.shape = Make(L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP, L, 150, CW,
-                    300, hwnd, IdShape, font);
-    int shapeSel = -1;
+    LauncherSpec spec;
+    spec.windowTitle = L"ABZ\x00DB - Screen Settings";
+    spec.gameTitle = L"ABZ\x00DB";
+    spec.subtitle = L"Screen Resolution Fix";
+    spec.checkboxText = L"Show these settings every time the game starts";
+    spec.hintText = L"Turned off? Hold Shift while starting the game to see these settings again.";
+    spec.checked = s.showWindow;
+
+    // Resolution: item 0 = native, then every mode the monitor supports.
+    LauncherChoice res;
+    res.label = L"Resolution";
+    swprintf_s(buf, L"Native (%d x %d)", nativeW, nativeH);
+    res.items.push_back(buf);
+    for (size_t i = 0; i < modes.size(); ++i) {
+        swprintf_s(buf, L"%d x %d", modes[i].w, modes[i].h);
+        res.items.push_back(buf);
+        if (s.resX == modes[i].w && s.resY == modes[i].h) res.selected = (int)i + 1;
+    }
+    spec.choices.push_back(res);
+
+    // Picture shape, plus a custom value from the ini (e.g. 64:27) if one is set.
+    LauncherChoice shape;
+    shape.label = L"Picture shape";
     const int nShapes = (int)(sizeof(kShapes) / sizeof(kShapes[0]));
+    shape.selected = -1;
     for (int i = 0; i < nShapes; ++i) {
-        SendMessageW(st.shape, CB_ADDSTRING, 0, (LPARAM)kShapes[i].label);
-        if (ParseAspect(s.aspect) == ParseAspect(kShapes[i].value)) shapeSel = i;
+        shape.items.push_back(kShapes[i].label);
+        if (ParseAspect(s.aspect) == ParseAspect(kShapes[i].value)) shape.selected = i;
     }
-    if (shapeSel < 0) {  // a custom value from the ini (e.g. 64:27): keep it selectable
-        swprintf_s(buf, L"%s with black bars (from AbzuFix.ini)", s.aspect);
-        SendMessageW(st.shape, CB_ADDSTRING, 0, (LPARAM)buf);
-        shapeSel = nShapes;
+    if (shape.selected < 0) {
+        swprintf_s(buf, L"%s with black bars at the sides", s.aspect);
+        shape.items.push_back(buf);
+        shape.selected = nShapes;
     }
-    SendMessageW(st.shape, CB_SETCURSEL, shapeSel, 0);
+    spec.choices.push_back(shape);
 
-    st.show = Make(L"BUTTON", L"Show this window when the game starts",
-                   BS_AUTOCHECKBOX | WS_TABSTOP, L, 196, CW, 24, hwnd, IdShow, font);
-    SendMessageW(st.show, BM_SETCHECK, s.showWindow ? BST_CHECKED : BST_UNCHECKED, 0);
-    Make(L"STATIC", L"Hold Shift while the game starts to bring it back.", 0, L + 22, 220,
-         CW - 22, 20, hwnd, 0, font);
+    if (!ShowLauncher(ThisModule(), spec)) return false;
 
-    Make(L"BUTTON", L"Quit", WS_TABSTOP, W - L - 110 - 12 - 110, H - 24 - 36, 110, 36, hwnd,
-         IdQuit, font);
-    HWND play = Make(L"BUTTON", L"Play", BS_DEFPUSHBUTTON | WS_TABSTOP, W - L - 110,
-                     H - 24 - 36, 110, 36, hwnd, IdPlay, font);
-
-    ShowWindow(hwnd, SW_SHOW);
-    SetForegroundWindow(hwnd);
-    SetFocus(play);
-    // Drop "always on top" once shown; it was only there so the window isn't hidden behind
-    // the launcher on start.
-    SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
-
-    MSG m;
-    while (!st.done && GetMessageW(&m, nullptr, 0, 0) > 0) {
-        if (!IsDialogMessageW(hwnd, &m)) {
-            TranslateMessage(&m);
-            DispatchMessageW(&m);
-        }
+    const int r = spec.choices[0].selected;
+    if (r <= 0 || r > (int)modes.size()) {
+        s.resX = s.resY = 0;
+    } else {
+        s.resX = modes[r - 1].w;
+        s.resY = modes[r - 1].h;
     }
-    UnregisterClassW(wc.lpszClassName, wc.hInstance);
-    DeleteObject(font);
-    DeleteObject(titleFont);
-    return st.play;
+    const int sh = spec.choices[1].selected;
+    if (sh >= 0 && sh < nShapes) lstrcpynW(s.aspect, kShapes[sh].value, 32);
+    s.showWindow = spec.checked;
+    return true;
 }
 
 }  // namespace
