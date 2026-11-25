@@ -2,3 +2,4 @@ obj/
 bin/*.exp
 bin/*.lib
 *.log
+dist/
