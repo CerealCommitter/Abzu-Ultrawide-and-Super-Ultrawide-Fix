@@ -95,7 +95,8 @@ Run `build.cmd` (needs Visual Studio with "Desktop development with C++"). Outpu
 `tools\run_at.ps1` launches the game at a given resolution for testing.
 
 ## Files
-- `src\` - the DLL source (`AbzuFix.cpp` hook, `proxy_version.cpp` + `version.def` pass-through).
+- `src\` - the DLL source (`AbzuFix.cpp` hooks, `Settings.cpp` launch window, `proxy_version.cpp`
+  + `version.def` pass-through).
 - `config\` - working 5120x1440 settings file.
 - `backup\` - the original game settings files and save, from before any testing.
 - `screenshots\` - baseline (4:3 / 16:9 / 32:9) and fixed captures.
