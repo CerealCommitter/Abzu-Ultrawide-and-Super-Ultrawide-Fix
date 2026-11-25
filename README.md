@@ -123,3 +123,13 @@ Run `build.cmd` (needs Visual Studio with "Desktop development with C++"). Outpu
 - `design\` - launcher design mockups.
 - `config\` - working 5120x1440 settings file.
 - `screenshots\` - baseline (4:3 / 16:9 / 32:9) and fixed captures.
+- `LICENSE` - MIT license.
+
+## License
+The code is released under the [MIT License](LICENSE): you can use, modify and share it, as long as
+the copyright notice stays with it. It comes with no warranty.
+
+Not covered by the license:
+- The CerealCommitter logo (`assets\logo.png`, `design\cerealcommitter-logo.png`, and the copy
+  built into `version.dll`). It remains © CerealCommitter; if you reuse the code, use your own logo.
+- The ABZÛ screenshots in `screenshots\`, which show the game. ABZÛ is © Giant Squid.
