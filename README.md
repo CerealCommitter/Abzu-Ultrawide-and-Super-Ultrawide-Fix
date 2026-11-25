@@ -64,7 +64,8 @@ differs, it does nothing.
 Black-bar mode on 5120x1440: `21:9` gives a centred 3360x1440 picture, `16:9` gives 2560x1440
 (menu and gameplay checked).
 
-Not yet checked in game: story cutscenes.
+Story cutscenes are rendered in-engine and go through the same camera code; play-tested on 32:9
+and they display correctly.
 
 ## Build
 Run `build.cmd` (needs Visual Studio with "Desktop development with C++"). Output: `bin\version.dll`.
