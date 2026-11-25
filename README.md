@@ -1,6 +1,6 @@
-# Abzu Screen Resolution Fix
+# Abzu Ultrawide & Super-Ultrawide Fix
 
-A resolution-only fix that makes ABZÛ (PC) display correctly on ultrawide (21:9) and
+A fix that makes ABZÛ (PC) display correctly on ultrawide (21:9) and
 super-ultrawide (32:9) monitors. Nothing else about the game is changed: no game files are edited,
 and at 16:9 or narrower the game behaves exactly as before.
 

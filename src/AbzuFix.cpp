@@ -1,4 +1,4 @@
-// Abzu Screen Resolution Fix
+// Abzu Ultrawide & Super-Ultrawide Fix
 //
 // ABZU already does Hor+ (keeps the vertical view fixed and widens the sides): its camera code
 // takes a vertical FOV (58 degrees in normal play) and computes the horizontal FOV as
@@ -543,7 +543,7 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID) {
             lstrcatW(g_ini, L"AbzuFix.ini");
             LoadFixSettings(g_ini, g_settings);
             ApplySettings();
-            Log("---- Abzu Screen Resolution Fix loaded (Enabled=%d, AspectRatio=%.4f) ----",
+            Log("---- Abzu Ultrawide & Super-Ultrawide Fix loaded (Enabled=%d, AspectRatio=%.4f) ----",
                 g_enabled ? 1 : 0, g_boxAspect);
             if (g_enabled) InstallHook();
             InstallBootResolutionHook();

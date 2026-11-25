@@ -85,7 +85,7 @@ bool ShowWindowAndWait(FixSettings& s) {
     LauncherSpec spec;
     spec.windowTitle = L"ABZ\x00DB - Screen Settings";
     spec.gameTitle = L"ABZ\x00DB";
-    spec.subtitle = L"Screen Resolution Fix";
+    spec.subtitle = L"Ultrawide & Super-Ultrawide Fix";
     spec.checkboxText = L"Show these settings every time the game starts";
     spec.hintText = L"Turned off? Hold Shift while starting the game to see these settings again.";
     spec.checked = s.showWindow;

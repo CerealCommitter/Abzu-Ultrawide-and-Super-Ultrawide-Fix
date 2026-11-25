@@ -18,7 +18,7 @@ struct LauncherChoice {
 struct LauncherSpec {
     std::wstring windowTitle;   // title bar
     std::wstring gameTitle;     // big heading, e.g. L"ABZ\x00DB"
-    std::wstring subtitle;      // e.g. L"Screen Resolution Fix"
+    std::wstring subtitle;      // e.g. L"Ultrawide & Super-Ultrawide Fix"
     std::vector<LauncherChoice> choices;
     std::wstring checkboxText;
     std::wstring hintText;      // small text under the checkbox
