@@ -122,5 +122,4 @@ Run `build.cmd` (needs Visual Studio with "Desktop development with C++"). Outpu
 - `assets\` - the logo embedded in the DLL.
 - `design\` - launcher design mockups.
 - `config\` - working 5120x1440 settings file.
-- `backup\` - the original game settings files and save, from before any testing.
 - `screenshots\` - baseline (4:3 / 16:9 / 32:9) and fixed captures.
