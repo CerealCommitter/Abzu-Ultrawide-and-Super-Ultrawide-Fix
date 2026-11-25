@@ -16,6 +16,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "Settings.h"
+
 namespace {
 
 // ---- settings / logging ----------------------------------------------------------------
@@ -48,23 +50,34 @@ void Log(const char* fmt, ...) {
     ReleaseSRWLockExclusive(&g_logLock);
 }
 
-void LoadSettings() {
-    wchar_t ini[MAX_PATH];
-    lstrcpyW(ini, g_dir);
-    lstrcatW(ini, L"AbzuFix.ini");
-    g_enabled = GetPrivateProfileIntW(L"AbzuFix", L"Enabled", 1, ini) != 0;
-    g_log = GetPrivateProfileIntW(L"AbzuFix", L"Log", 0, ini) != 0;
+wchar_t g_ini[MAX_PATH];
+FixSettings g_settings;
 
-    // AspectRatio: "21:9", "16:9", "64:27", a decimal like "2.37", or 0 / empty for off.
-    wchar_t v[64] = {};
-    GetPrivateProfileStringW(L"AbzuFix", L"AspectRatio", L"0", v, 64, ini);
-    double w = 0, h = 0;
-    if (swscanf_s(v, L"%lf : %lf", &w, &h) == 2 && w > 0 && h > 0) {
-        g_boxAspect = (float)(w / h);
-    } else if (swscanf_s(v, L"%lf", &w) == 1 && w > 0) {
-        g_boxAspect = (float)w;
-    }
-    if (!(g_boxAspect >= 1.0f && g_boxAspect <= 10.0f)) g_boxAspect = 0.0f;
+void ApplySettings() {
+    g_enabled = g_settings.enabled;
+    g_log = g_settings.log;
+    g_boxAspect = ParseAspect(g_settings.aspect);
+}
+
+// ---- launch window at the game's entry point ---------------------------------------------
+// DllMain runs under the loader lock, where showing a window isn't safe. Instead the exe's
+// entry point is redirected here: the settings window runs on the main thread before the
+// game's own startup code (and before the engine reads its config), then the original entry
+// bytes are restored and the game starts normally.
+using EntryFn = int(__stdcall*)(void* peb);
+uint8_t* g_entry = nullptr;
+uint8_t g_entryBytes[14];
+
+int __stdcall EntryHook(void* peb) {
+    DWORD old;
+    VirtualProtect(g_entry, sizeof(g_entryBytes), PAGE_EXECUTE_READWRITE, &old);
+    memcpy(g_entry, g_entryBytes, sizeof(g_entryBytes));
+    VirtualProtect(g_entry, sizeof(g_entryBytes), old, &old);
+    FlushInstructionCache(GetCurrentProcess(), g_entry, sizeof(g_entryBytes));
+
+    if (!RunLaunchSettings(g_ini, g_settings)) ExitProcess(0);  // player chose Quit
+    ApplySettings();
+    return reinterpret_cast<EntryFn>(g_entry)(peb);
 }
 
 // ---- the game's camera FOV function -------------------------------------------------------
@@ -226,6 +239,22 @@ bool IsGameExe() {
     return lstrcmpiW(name, L"AbzuGame-Win64-Shipping.exe") == 0;
 }
 
+bool InstallEntryHook() {
+    uint8_t* exe = reinterpret_cast<uint8_t*>(GetModuleHandleW(nullptr));
+    auto* nt = reinterpret_cast<IMAGE_NT_HEADERS64*>(
+        exe + reinterpret_cast<IMAGE_DOS_HEADER*>(exe)->e_lfanew);
+    if (!nt->OptionalHeader.AddressOfEntryPoint) return false;
+    g_entry = exe + nt->OptionalHeader.AddressOfEntryPoint;
+    memcpy(g_entryBytes, g_entry, sizeof(g_entryBytes));
+    DWORD old;
+    if (!VirtualProtect(g_entry, sizeof(g_entryBytes), PAGE_EXECUTE_READWRITE, &old))
+        return false;
+    WriteAbsJump(g_entry, reinterpret_cast<void*>(&EntryHook));
+    VirtualProtect(g_entry, sizeof(g_entryBytes), old, &old);
+    FlushInstructionCache(GetCurrentProcess(), g_entry, sizeof(g_entryBytes));
+    return true;
+}
+
 }  // namespace
 
 BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID) {
@@ -235,10 +264,18 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID) {
         wchar_t* slash = wcsrchr(g_dir, L'\\');
         if (slash) slash[1] = 0;
         if (IsGameExe()) {
-            LoadSettings();
+            lstrcpyW(g_ini, g_dir);
+            lstrcatW(g_ini, L"AbzuFix.ini");
+            LoadFixSettings(g_ini, g_settings);
+            ApplySettings();
             Log("---- Abzu Screen Resolution Fix loaded (Enabled=%d, AspectRatio=%.4f) ----",
                 g_enabled ? 1 : 0, g_boxAspect);
             if (g_enabled) InstallHook();
+            if (!InstallEntryHook()) {
+                // No launch window possible (no windows under the loader lock): still apply
+                // the saved resolution so the game doesn't fall back to its own pick.
+                ApplyResolutionToGame(g_settings);
+            }
         }
     }
     return TRUE;

@@ -1,31 +1,50 @@
 # Abzu Screen Resolution Fix
 
-A resolution-only fix that makes ABZÛ (PC, Steam) display correctly on ultrawide (21:9) and
+A resolution-only fix that makes ABZÛ (PC) display correctly on ultrawide (21:9) and
 super-ultrawide (32:9) monitors. Nothing else about the game is changed: no game files are edited,
 and at 16:9 or narrower the game behaves exactly as before.
 
 ![16:9 reference, 32:9 before, 32:9 with fix](screenshots/compare-fix-gameplay.jpg)
 
 ## Install
-1. Copy `bin\version.dll` and `bin\AbzuFix.ini` into
-   `<Steam library>\steamapps\common\ABZU\AbzuGame\Binaries\Win64\`
-   (next to `AbzuGame-Win64-Shipping.exe`).
-2. Make the game run at your monitor's native resolution. The game often falls back to 1920x1080,
-   so set it in `%LOCALAPPDATA%\AbzuGame\Saved\Config\WindowsNoEditor\GameUserSettings.ini`
-   (see `config\GameUserSettings.5120x1440.ini`): `ResolutionSizeX/Y`, `DesiredScreenWidth/Height`
-   and `LastUserConfirmedResolutionSizeX/Y`.
+Copy `bin\version.dll` and `bin\AbzuFix.ini` into the game's `AbzuGame\Binaries\Win64\` folder,
+next to `AbzuGame-Win64-Shipping.exe`. For Steam that is
+`<Steam library>\steamapps\common\ABZU\AbzuGame\Binaries\Win64\`.
 
-**Uninstall:** delete `version.dll` and `AbzuFix.ini` from that folder. `Enabled=0` in the ini
-also turns the fix off.
+That's all: no launch options or settings files to edit.
 
-## Black-bar mode (optional)
-Set `AspectRatio` in `AbzuFix.ini` to play in a narrower shape, centred, with black bars at the
-sides, while the game stays fullscreen at native resolution. The monitor doesn't switch modes, so
-the picture stays sharp and alt-tab stays fast. The view is exactly what a real monitor of that
-shape would show.
+**Uninstall:** delete `version.dll` and `AbzuFix.ini` from that folder.
+
+### Other stores
+ABZU is also sold on the Epic Games Store and DRM-free on GOG (and was on Origin). They're the same
+Unreal Engine game, so the install is the same: drop the two files next to the game's exe. The
+settings window and resolution handling work regardless of store. The FOV fix finds its hook by byte
+pattern; if another store's build differs, it switches itself off rather than misbehaving. Only the
+Steam version has been tested.
+
+## Settings window
+A small window opens when the game starts, before the game itself loads, however it's launched
+(Steam, another store's launcher, or the exe directly):
+
+- **Resolution**: "Native" (your monitor's resolution) or any mode your monitor supports.
+- **Picture shape**: fill the whole screen, or 21:9 / 16:9 / 4:3 with black bars at the sides.
+- **Show this window when the game starts**: untick to skip it; hold **Shift** while the game starts
+  to bring it back.
+- **Play** starts the game with those settings; **Quit** cancels the launch.
+
+The chosen resolution is written into the game's own settings at every launch, even when the
+window is hidden. ABZU's in-game "Native" display setting resolves to the wrong size on some
+monitors (3840x1080 on a 5120x1440 screen), and changing in-game options can reset the resolution
+to that "Native"; the next launch puts it back.
+
+## Black-bar mode
+Choosing a narrower picture shape plays the game in that shape, centred, with black bars at the
+sides, while it stays fullscreen at your resolution. The monitor doesn't switch modes, so the
+picture stays sharp and alt-tab stays fast. The view is exactly what a real monitor of that shape
+would show. The setting is stored in `AbzuFix.ini` and can also be set there:
 
 ```ini
-AspectRatio=0      ; default: fill the whole screen
+AspectRatio=0      ; fill the whole screen
 AspectRatio=21:9   ; also 64:27, 16:9, or a decimal such as 2.37
 ```
 
@@ -63,6 +82,10 @@ differs, it does nothing.
 
 Black-bar mode on 5120x1440: `21:9` gives a centred 3360x1440 picture, `16:9` gives 2560x1440
 (menu and gameplay checked).
+
+Settings window (Steam launch): opens before the game; Play with "Native" took the game from its
+own 3840x1080 pick to 5120x1440; choosing 21:9 gave black bars; with the window turned off the
+resolution is still corrected. Holding Shift to reopen it hasn't been tested.
 
 Story cutscenes are rendered in-engine and go through the same camera code; play-tested on 32:9
 and they display correctly.
