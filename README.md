@@ -1,30 +1,59 @@
 # Abzu Screen Resolution Fix
 
-A resolution-only fix that makes ABZÛ (PC) display correctly on ultrawide (21:9) and super-ultrawide (32:9)
-monitors. Nothing else about the game is changed.
+A resolution-only fix that makes ABZÛ (PC, Steam) display correctly on ultrawide (21:9) and
+super-ultrawide (32:9) monitors. Nothing else about the game is changed: no game files are edited,
+and at 16:9 or narrower the game behaves exactly as before.
 
-**Status:** step 1 (settings-file resolution) done. Step 2 (FOV-correcting DLL) not started.
+![16:9 reference, 32:9 before, 32:9 with fix](screenshots/compare-fix-gameplay.jpg)
 
-## Notes
+## Install
+1. Copy `bin\version.dll` and `bin\AbzuFix.ini` into
+   `<Steam library>\steamapps\common\ABZU\AbzuGame\Binaries\Win64\`
+   (next to `AbzuGame-Win64-Shipping.exe`).
+2. Make the game run at your monitor's native resolution. The game often falls back to 1920x1080,
+   so set it in `%LOCALAPPDATA%\AbzuGame\Saved\Config\WindowsNoEditor\GameUserSettings.ini`
+   (see `config\GameUserSettings.5120x1440.ini`): `ResolutionSizeX/Y`, `DesiredScreenWidth/Height`
+   and `LastUserConfirmedResolutionSizeX/Y`.
 
-- Steam app 384190. Unreal Engine 4.12.5. Install: `D:\SteamLibrary\steamapps\common\ABZU`.
-- User config: `%LOCALAPPDATA%\AbzuGame\Saved\Config\WindowsNoEditor\GameUserSettings.ini`.
-- Originals: `backup/original-config/`. Save backup: `backup/savegames/`.
+**Uninstall:** delete `version.dll` and `AbzuFix.ini` from that folder. `Enabled=0` in the ini
+also turns the fix off.
 
-## Step 1: settings-file resolution (done)
-`config/GameUserSettings.5120x1440.ini` sets `ResolutionSizeX/Y`, `DesiredScreenWidth/Height` and
-`LastUserConfirmedResolutionSizeX/Y` to 5120x1440. The game opens briefly as a small window, then
-switches to true fullscreen at 5120x1440. Menus are not stretched.
+## What was wrong
+- UE 4.12.5, Steam app 384190. The engine uses its default "keep horizontal FOV" projection.
+- ABZU's camera code (`exe+0x161A00`) does proper Hor+: it takes a vertical FOV (58° in normal
+  play) and sets the horizontal FOV to `2·atan(tan(58°/2)·aspect)`: 72.9° at 4:3, 89.2° at 16:9.
+- It then clamps that to **100°**. Past about 19.4:9 the clamp kicks in, the horizontal FOV stops
+  growing, and the engine crops the top and bottom instead. At 32:9 the picture was zoomed in
+  1.7x vertically (diver's fins cut off).
 
-## Baseline framing (screenshots/compare-*.jpg)
-Same save, same camera, captured with Steam F12 at native resolution.
+## What the fix does
+`version.dll` passes every call through to the system `version.dll` and hooks that one camera
+function. When the screen is wider than 16:9, it replaces the fixed 100° cap with the same cap
+converted from 16:9 to the current aspect ratio:
 
-| Aspect | Result |
-|---|---|
-| 4:3 (1920x1440) | Reference framing. |
-| 16:9 (2560x1440) | Correct Hor+: same vertical framing as 4:3, more scene at the sides. |
-| 32:9 (5120x1440) | **Wrong.** Gains only a little width, and the vertical view collapses: the diver is about 1.6x larger and the fins are cut off at the bottom. |
+- normal play keeps the 16:9 vertical view: 104.6° at 21:9, 126.2° at 32:9;
+- any shot the game capped at 100° on 16:9 stays capped at the same vertical view;
+- 16:9 and narrower: the function's result is not touched.
 
-So the game keeps the vertical FOV steady up to 16:9, then gives it up past 16:9.
-**Target for the fix:** keep the 16:9 vertical FOV at every aspect wider than 16:9 (pure Hor+),
-continuing the game's own 4:3 to 16:9 behaviour. Leave 16:9 and narrower untouched.
+The hook finds the function by byte pattern and checks the cap instruction. If the game version
+differs, it does nothing.
+
+## Verified
+| Aspect | Game FOV | With fix | Result |
+|---|---|---|---|
+| 4:3 (1920x1440) | 72.9° | unchanged | reference (same vertical as 16:9) |
+| 16:9 (2560x1440) | 89.2° | unchanged | reference |
+| 21:9 (2520x1080) | 100° (capped) | 104.6° | from the log only (no screenshot) |
+| 32:9 (5120x1440) | 100° (capped) | 126.2° | screenshots: same framing as 16:9 (measured zoom 1.03 vs 1.70 before) |
+
+Not yet checked in game: story cutscenes, and the optional black-bar (fixed aspect) mode.
+
+## Build
+Run `build.cmd` (needs Visual Studio with "Desktop development with C++"). Output: `bin\version.dll`.
+`tools\run_at.ps1` launches the game at a given resolution for testing.
+
+## Files
+- `src\` - the DLL source (`AbzuFix.cpp` hook, `proxy_version.cpp` + `version.def` pass-through).
+- `config\` - working 5120x1440 settings file.
+- `backup\` - the original game settings files and save, from before any testing.
+- `screenshots\` - baseline (4:3 / 16:9 / 32:9) and fixed captures.
