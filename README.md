@@ -40,9 +40,9 @@ monitors (3840x1080 on a 5120x1440 screen), and changing in-game options can res
 to that "Native"; the next launch puts it back.
 
 ## Black-bar mode
-Choosing a narrower picture shape plays the game in that shape, centred, with black bars at the
+Choosing a narrower picture shape plays the game in that shape, centered, with black bars at the
 sides, while it stays fullscreen at your resolution. The monitor doesn't switch modes, so the
-picture stays sharp and alt-tab stays fast. The view is exactly what a real monitor of that shape
+picture stays sharp, and alt-tab stays fast. The view is exactly what a real monitor of that shape
 would show. The setting is stored in `AbzuFix.ini` and can also be set there:
 
 ```ini
@@ -52,14 +52,14 @@ AspectRatio=21:9   ; also 64:27, 16:9, or a decimal such as 2.37
 
 ![Full screen, 21:9 and 16:9 modes on a 32:9 monitor](screenshots/compare-black-bar-modes.jpg)
 
-Menus and on-screen text are laid out for the full screen width, so menus stay centred.
+Menus and on-screen text are laid out for the full screen width, so menus stay centered.
 
 ## What was wrong
 - UE 4.12.5, Steam app 384190. The engine uses its default "keep horizontal FOV" projection.
 - ABZU's camera code (`exe+0x161A00`) does proper Hor+: it takes a vertical FOV (58° in normal
   play) and sets the horizontal FOV to `2·atan(tan(58°/2)·aspect)`: 72.9° at 4:3, 89.2° at 16:9.
-- It then clamps that to **100°**. Past about 19.4:9 the clamp kicks in, the horizontal FOV stops
-  growing, and the engine crops the top and bottom instead. At 32:9 the picture was zoomed in
+- It then clamps that to **100°**. Past about 19.4:9, the clamp kicks in, the horizontal FOV stops
+  growing, and the engine crops the top and bottom instead. At 32:9, the picture was zoomed in
   1.7x vertically (diver's fins cut off).
 
 ## What the fix does
@@ -78,7 +78,7 @@ differs, it does nothing.
 - **Boot resolution.** Unreal replaces a fullscreen resolution that isn't smaller than the
   monitor's "native" size with that native size, and reads "native" from the monitor's EDID. Some
   monitors report less than they support (this 5120x1440 monitor reports 3840x1080), so the game
-  booted at 3840x1080, played its intro there, and switched to 5120x1440 afterwards. The second
+  booted at 3840x1080, played its intro there, and switched to 5120x1440 afterward. The second
   display-mode switch blacked out the Giant Squid logo. The DLL hooks
   `UGameEngine::DetermineGameWindowResolution` (`exe+0x10EBA40`) so fullscreen boots straight
   into the chosen resolution (native = the desktop's resolution). This is also why the in-game
@@ -87,7 +87,7 @@ differs, it does nothing.
   game's request for focus, and a fullscreen Unreal window without focus minimizes itself. During
   startup only, the DLL catches the game's own `ShowWindow` / `SetForegroundWindow` calls: it
   retries the focus request and keeps the window from minimizing. After the game has had focus,
-  both calls are untouched, so alt-tab works as normal.
+  both calls are untouched, so Alt+Tab works as normal.
 
 ## Verified
 | Aspect | Game FOV | With fix | Result |
