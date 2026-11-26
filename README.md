@@ -132,4 +132,4 @@ the copyright notice stays with it. It comes with no warranty.
 Not covered by the license:
 - The CerealCommitter logo (`assets\logo.png`, `design\cerealcommitter-logo.png`, and the copy
   built into `version.dll`). It remains © CerealCommitter; if you reuse the code, use your own logo.
-- The ABZÛ screenshots in `screenshots\`, which show the game. ABZÛ is © Giant Squid.
+- The ABZÛ screenshots in `screenshots\`, which show the game. ABZÛ is © Giant Squid and 505 Games.
